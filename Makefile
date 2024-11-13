@@ -19,3 +19,9 @@ wheel:
 	rm -rf dist/
 	pip install wheel
 	python setup.py sdist bdist_wheel
+
+makemessages:
+	manage.py makemessages -l nl --ignore venv --no-obsolete --no-location
+
+compilemessages:
+	manage.py compilemessages --ignore venv
