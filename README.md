@@ -4,6 +4,8 @@
 
 A custom SEO report for you Wagtail pages.
 
+![Wagtail SEO Report](./screenshot.jpg)
+
 ## Requirements
 
 - Wagtail >= 6
