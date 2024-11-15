@@ -1,38 +1,45 @@
-from django.db.models import Case, F, IntegerField, Q, Value, When
+from django.db.models import Case, CharField, F, IntegerField, Q, Value, When
 from django.db.models.functions import Cast, Length, Round
 from django.utils.translation import gettext_lazy as _
 from wagtail.admin.views.reports import PageReportView
 from wagtail.models import Page
 
 
-class WagtailSeoReportView(PageReportView):
+class WagtailSEOReportView(PageReportView):
     """
     A Wagtail ReportView that displays an SEO report.
     Contains a full list of all pages, sorted by SEO score (from worst to best).
     """
 
     title = _("SEO")
-    header_icon = "site"
-    permission_policy = "wagtailadmin.access_admin"
+    header_icon = "wagtail-seo-report"
     results_template_name = "wagtail_seo_report/seo_score_report_results.html"
     list_export = [
         "title",
+        "seo_title",
         "search_description",
     ]
     export_headings = {
-        "title": _("Title"),
-        "search_description": _("Search description"),
+        "title": _("title"),
+        "seo_title": _("title tag"),
+        "search_description": _("meta description"),
     }
+    export_filename = "wagtail_seo_report"
+
+    model = Page
     seo_score_components = [
+        {"name": "seo_title_score", "weight": 40, "method": "annotate_seo_title_score"},
         {
             "name": "search_description_score",
             "weight": 60,
             "method": "annotate_search_description_score",
         },
-        {"name": "seo_title_score", "weight": 40, "method": "annotate_seo_title_score"},
     ]
 
-    def annotate_score(self, qs):
+    def get_seo_score_components(self):
+        return self.seo_score_components
+
+    def annotate_seo_score(self, qs):
         # Normalize weights to ensure they add up to 100
         total_weight = sum(
             component["weight"] for component in self.seo_score_components
@@ -80,19 +87,19 @@ class WagtailSeoReportView(PageReportView):
                     Q(search_description_length__gte=50)
                     & Q(search_description_length__lte=160),
                     then=Value(100),
-                ),  # Full score for optimal length
+                ),
                 When(
-                    Q(search_description_length__lt=50)
-                    & Q(search_description__isnull=False)
+                    Q(search_description__isnull=False)
+                    & Q(search_description_length__lt=50)
                     & ~Q(search_description=""),
                     then=Value(50),
-                ),  # Half score for too short
+                ),
                 When(
-                    Q(search_description_length__gt=160)
-                    & Q(search_description__isnull=False)
+                    Q(search_description__isnull=False)
+                    & Q(search_description_length__gt=160)
                     & ~Q(search_description=""),
                     then=Value(25),
-                ),  # Lower score for too long
+                ),
                 default=Value(0),
                 output_field=IntegerField(),
             ),
@@ -100,31 +107,34 @@ class WagtailSeoReportView(PageReportView):
 
     def annotate_seo_title_score(self, qs):
         return qs.annotate(
-            seo_title_length=Length("seo_title"),
+            seo_title_value=Case(
+                When(Q(seo_title__isnull=False), then=F("seo_title")),
+                default=Value("title"),
+                output_field=CharField(),
+            ),
+            seo_title_length=Length("seo_title_value"),
             seo_title_score=Case(
-                When(Q(seo_title__isnull=True) | Q(seo_title=""), then=Value(0)),
                 When(
                     Q(seo_title_length__gte=50) & Q(seo_title_length__lte=60),
                     then=Value(100),
-                ),  # Full score for optimal length
+                ),
                 When(
-                    Q(seo_title_length__lt=50)
-                    & Q(seo_title__isnull=False)
-                    & ~Q(seo_title=""),
+                    Q(seo_title_length__lt=50),
                     then=Value(50),
-                ),  # Half score for too short
+                ),
                 When(
-                    Q(seo_title_length__gt=60)
-                    & Q(seo_title__isnull=False)
-                    & ~Q(seo_title=""),
-                    then=Value(25),
-                ),  # Lower score for too long
+                    Q(seo_title_length__gt=60),
+                    then=Value(50),
+                ),
                 default=Value(0),
                 output_field=IntegerField(),
             ),
         )
 
     def get_queryset(self):
-        qs = Page.objects.all()
-        qs = self.annotate_score(qs)
-        return qs.order_by("seo_score")
+        qs = self.model.objects.all().select_related(
+            "latest_revision", "latest_revision__user"
+        )
+        qs = self.annotate_seo_score(qs)
+        qs = qs.order_by("seo_score")
+        return qs

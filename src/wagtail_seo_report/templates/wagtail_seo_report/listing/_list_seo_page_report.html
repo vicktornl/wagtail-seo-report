@@ -9,22 +9,21 @@
         {% block post_parent_page_headers %}
             <tr class="table-headers">
                 <th class="title">
-                    {% trans 'Title' %}
+                    {% trans 'title'|capfirst %}
                 </th>
-                <th class="seo-title">
-                    {% trans 'SEO Title' %}
+                <th>
+                    {% trans 'title tag'|capfirst %}
                 </th>
-                <th class="search-description">
-                    {% trans 'Search description' %}
+                <th>
+                    {% trans 'meta description'|capfirst %}
                 </th>
-                <th class="updated">
-                    {% trans 'Updated' %}
+                <th>
+                    {% trans 'Edited' %}
                 </th>
-                <th class="last_revision_by">
-                    {% trans 'Latest revision by' %}
+                <th>
+                    {% trans 'Edited by' %}
                 </th>
-                {% block extra_columns %}
-                {% endblock %}
+                {% block extra_columns %}{% endblock %}
             </tr>
         {% endblock %}
     </thead>
@@ -32,63 +31,65 @@
         {% if pages %}
             {% for page in pages %}
                 {% page_permissions page as page_perms %}
-                <tr class="{% if not page.live %}unpublished{% endif %} {% block page_row_classname %}{% endblock %}">
+                <tr class="{% if not page.live %}unpublished{% endif %} {% block page_row_classname %}{% endblock %}" data-seo-score="{{ page.seo_score }}">
                     <td class="title" valign="top" data-listing-page-title>
                         {% block page_title %}
                             {% i18n_enabled as show_locale_labels %}
                             {% include "wagtailadmin/pages/listing/_page_title_explore.html" with show_locale_labels=show_locale_labels %}
                         {% endblock %}
                     </td>
-                    <td class="seo-title" valign="top"> 
+                    <td valign="top">
                         {% if page.seo_title %}
                             {{ page.seo_title }}
+                        {% else %}
+                            -
                         {% endif %}
-
                         <p style="margin-top: 1em;">
-                            {% if page.seo_title|length >= 60 %}
-                                <span style="background-color: var(--w-color-critical-200);color: var(--w-color-white);border-radius:3px;padding:0.5em 0.5em;">
+                            {% if page.seo_title_value|length > 60 %}
+                                <span style="background-color: var(--w-color-critical-200);color: var(--w-color-white);border-radius:3px;padding:0.25em 0.5em;">
                                     {% trans 'Too long' %}
                                 </span>
-                            {% elif page.seo_title|length <= 50 %}
-                                <span style="background-color: var(--w-color-warning-100);color: var(--w-color-grey-600);border-radius:3px;padding:0.5em 0.5em;">
+                            {% elif page.seo_title_value|length < 50 %}
+                                <span style="background-color: var(--w-color-warning-100);color: var(--w-color-grey-600);border-radius:3px;padding:0.25em 0.5em;">
                                     {% trans 'Too short' %}
                                 </span>
                             {% else %}
-                                <span style="background-color: var(--w-color-positive-100);color: var(--w-color-white);border-radius:3px;padding:0.5em 0.5em;">
+                                <span style="background-color: var(--w-color-positive-100);color: var(--w-color-white);border-radius:3px;padding:0.25em 0.5em;">
                                     {% trans 'Ok' %}
                                 </span>
                             {% endif %}
-                    
                         </p>
                     </td>
-                    <td class="search-description" valign="top"> 
+                    <td valign="top">
                         {% if page.search_description %}
-                            {{ page.search_description }}
+                            {{ page.search_description|truncatechars:50 }}
+                            <p style="margin-top: 1em;">
+                                {% if page.search_description|length > 160 %}
+                                    <span style="background-color: var(--w-color-critical-200);color: var(--w-color-white);border-radius:3px;padding:0.25em 0.5em;">
+                                        {% trans 'Too long' %}
+                                    </span>
+                                {% elif page.search_description|length < 50 %}
+                                    <span style="background-color: var(--w-color-warning-100);color: var(--w-color-grey-600);border-radius:3px;padding:0.25em 0.5em;">
+                                        {% trans 'Too short' %}
+                                    </span>
+                                {% else %}
+                                <span style="background-color: var(--w-color-positive-100); color: var(--w-color-white); border-radius: 3px; padding:0.25em 0.5em;">
+                                        {% trans 'Ok' %}
+                                    </span>
+                                {% endif %}
+                            </p>
+                        {% else %}
+                            <span style="background-color: var(--w-color-critical-200);color: var(--w-color-white);border-radius:3px;padding:0.25em 0.5em;">
+                                {% trans 'Missing' %}
+                            </span>
                         {% endif %}
-
-                        <p style="margin-top: 1em;">
-                            {% if page.search_description|length >= 160 %}
-                                <span style="background-color: var(--w-color-critical-200);color: var(--w-color-white);border-radius:3px;padding:0.5em 0.5em;">
-                                    {% trans 'Too long' %}
-                                </span>
-                            {% elif page.search_description|length <= 50 %}
-                                <span style="background-color: var(--w-color-warning-100);color: var(--w-color-grey-600);border-radius:3px;padding:0.5em 0.5em;">
-                                    {% trans 'Too short' %}
-                                </span>
-                            {% else %}
-                            <span style="background-color: var(--w-color-positive-100); color: var(--w-color-white); border-radius: 3px; padding: 0.5em 0.5em; display: inline-block;">
-                                    {% trans 'Ok' %}
-                                </span>
-                            {% endif %}
-                    
-                        </p>
                     </td>
-                    <td class="updated" valign="top">
+                    <td valign="top">
                         {% if page.latest_revision_created_at %}
                             {% human_readable_date page.latest_revision_created_at %}
                         {% endif %}
                     </td>
-                    <td class="last_revision_by" valign="top">
+                    <td valign="top">
                         {% if page.latest_revision.user %}
                             {{ page.latest_revision.user }}
                         {% else %}
